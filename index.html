@@ -1,0 +1,566 @@
+<html>
+
+<head>
+  <style></style>
+</head>
+
+<body>
+
+<script>
+//-------Hier einfügen-----------------------
+
+
+let ball;
+let paddle;
+let targets = [];
+
+let score = 0;
+let lives = 3;
+let started = false;
+let gameOver = false;
+let won = false;
+
+function setup() {
+  createCanvas(900, 600);
+
+  paddle = {
+    x: width / 2,
+    y: height - 45,
+    w: 140,
+    h: 18,
+    speed: 8
+  };
+
+  resetBall();
+  createTargets();
+}
+
+function draw() {
+  background(15, 20, 40);
+
+  // Hintergrund
+  drawBackground();
+
+  if (!started) {
+    drawStart();
+    return;
+  }
+
+  if (gameOver) {
+    drawGameOver();
+    return;
+  }
+
+  if (won) {
+    drawWin();
+    return;
+  }
+
+  // Plattform bewegen
+  if (keyIsDown(LEFT_ARROW) || keyIsDown(65)) {
+    paddle.x -= paddle.speed;
+  }
+
+  if (keyIsDown(RIGHT_ARROW) || keyIsDown(68)) {
+    paddle.x += paddle.speed;
+  }
+
+  paddle.x = constrain(
+    paddle.x,
+    paddle.w / 2,
+    width - paddle.w / 2
+  );
+
+  // Ball bewegen
+  ball.x += ball.vx;
+  ball.y += ball.vy;
+
+  // Linke Wand
+  if (ball.x - ball.r < 0) {
+    ball.x = ball.r;
+    ball.vx *= -1;
+  }
+
+  // Rechte Wand
+  if (ball.x + ball.r > width) {
+    ball.x = width - ball.r;
+    ball.vx *= -1;
+  }
+
+  // Obere Wand
+  if (ball.y - ball.r < 70) {
+    ball.y = 70 + ball.r;
+    ball.vy *= -1;
+  }
+
+  // Plattform treffen
+  if (
+    ball.x > paddle.x - paddle.w / 2 &&
+    ball.x < paddle.x + paddle.w / 2 &&
+    ball.y + ball.r > paddle.y &&
+    ball.y - ball.r < paddle.y + paddle.h &&
+    ball.vy > 0
+  ) {
+    ball.y = paddle.y - ball.r;
+
+    // Je nachdem wo die Plattform getroffen wurde,
+    // fliegt der Ball in eine andere Richtung.
+    let abweichung =
+      (ball.x - paddle.x) / (paddle.w / 2);
+
+    ball.vx = abweichung * 7;
+    ball.vy = -6;
+  }
+
+  // Ziele treffen
+  for (let i = targets.length - 1; i >= 0; i--) {
+
+    let t = targets[i];
+
+    let getroffen =
+      ball.x + ball.r > t.x &&
+      ball.x - ball.r < t.x + t.w &&
+      ball.y + ball.r > t.y &&
+      ball.y - ball.r < t.y + t.h;
+
+    if (getroffen) {
+
+      targets.splice(i, 1);
+
+      score += 100;
+
+      ball.vy *= -1;
+    }
+  }
+
+  // Alle Ziele getroffen?
+  if (targets.length === 0) {
+    won = true;
+  }
+
+  // Ball verloren
+  if (ball.y > height + 30) {
+
+    lives--;
+
+    if (lives <= 0) {
+      gameOver = true;
+    } else {
+      resetBall();
+    }
+  }
+
+  drawTargets();
+  drawPaddle();
+  drawBall();
+  drawHUD();
+}
+
+
+// ------------------------------------------------------------
+// HINTERGRUND
+// ------------------------------------------------------------
+
+function drawBackground() {
+
+  // obere Leiste
+  fill(25, 35, 65);
+  rect(0, 0, width, 65);
+
+  // Sterne
+  noStroke();
+
+  for (let i = 0; i < 70; i++) {
+    fill(255, 255, 255, 100);
+    circle(
+      (i * 137) % width,
+      80 + ((i * 83) % 350),
+      2
+    );
+  }
+
+  // Boden
+  fill(10, 15, 30);
+  rect(0, height - 20, width, 20);
+}
+
+
+// ------------------------------------------------------------
+// ZIELE
+// ------------------------------------------------------------
+
+function createTargets() {
+
+  targets = [];
+
+  let zeilen = 4;
+  let spalten = 9;
+
+  for (let y = 0; y < zeilen; y++) {
+
+    for (let x = 0; x < spalten; x++) {
+
+      targets.push({
+        x: 65 + x * 95,
+        y: 100 + y * 55,
+        w: 65,
+        h: 32
+      });
+
+    }
+  }
+}
+
+
+function drawTargets() {
+
+  for (let i = 0; i < targets.length; i++) {
+
+    let t = targets[i];
+
+    // Schatten
+    fill(0, 0, 0, 100);
+    rect(
+      t.x + 4,
+      t.y + 5,
+      t.w,
+      t.h,
+      7
+    );
+
+    // Ziel
+    if (i % 3 === 0) {
+      fill(255, 70, 80);
+    } else if (i % 3 === 1) {
+      fill(255, 170, 50);
+    } else {
+      fill(60, 180, 255);
+    }
+
+    rect(
+      t.x,
+      t.y,
+      t.w,
+      t.h,
+      7
+    );
+
+    // Mitte
+    fill(255, 255, 255, 120);
+
+    circle(
+      t.x + t.w / 2,
+      t.y + t.h / 2,
+      10
+    );
+  }
+}
+
+
+// ------------------------------------------------------------
+// PLATTFORM
+// ------------------------------------------------------------
+
+function drawPaddle() {
+
+  // Schatten
+  fill(0, 0, 0, 100);
+
+  rect(
+    paddle.x - paddle.w / 2 + 5,
+    paddle.y + 5,
+    paddle.w,
+    paddle.h,
+    10
+  );
+
+  // Plattform
+  fill(50, 180, 255);
+
+  rect(
+    paddle.x - paddle.w / 2,
+    paddle.y,
+    paddle.w,
+    paddle.h,
+    10
+  );
+
+  // Licht
+  fill(180, 240, 255);
+
+  rect(
+    paddle.x - paddle.w / 2 + 10,
+    paddle.y + 3,
+    paddle.w - 20,
+    4,
+    3
+  );
+}
+
+
+// ------------------------------------------------------------
+// BALL
+// ------------------------------------------------------------
+
+function drawBall() {
+
+  // Glow
+  noStroke();
+
+  fill(255, 200, 60, 40);
+  circle(ball.x, ball.y, 45);
+
+  fill(255, 190, 40);
+  circle(
+    ball.x,
+    ball.y,
+    ball.r * 2
+  );
+
+  // Lichtreflex
+  fill(255, 245, 190);
+
+  circle(
+    ball.x - 4,
+    ball.y - 4,
+    7
+  );
+}
+
+
+// ------------------------------------------------------------
+// HUD
+// ------------------------------------------------------------
+
+function drawHUD() {
+
+  fill(255);
+
+  textAlign(LEFT, CENTER);
+  textSize(20);
+
+  text(
+    "Punkte: " + score,
+    20,
+    32
+  );
+
+  text(
+    "Leben: " + lives,
+    180,
+    32
+  );
+
+  textAlign(RIGHT);
+
+  textSize(16);
+
+  text(
+    "Pfeil links, rechts oder A, D = Plattform bewegen",
+    width - 20,
+    32
+  );
+}
+
+
+// ------------------------------------------------------------
+// BALL ZURÜCKSETZEN
+// ------------------------------------------------------------
+
+function resetBall() {
+
+  ball = {
+    x: width / 2,
+    y: height - 90,
+    r: 12,
+    vx: random([-4, 4]),
+    vy: -6
+  };
+}
+
+
+// ------------------------------------------------------------
+// START
+// ------------------------------------------------------------
+
+function drawStart() {
+
+  fill(255);
+  textAlign(CENTER, CENTER);
+
+  textSize(50);
+  textStyle(BOLD);
+
+  text(
+    "BOUNCE BLAST",
+    width / 2,
+    220
+  );
+
+  textStyle(NORMAL);
+
+  textSize(22);
+
+  text(
+    "Zerstoere alle Ziele mit dem Ball!",
+    width / 2,
+    280
+  );
+
+  fill(50, 180, 255);
+
+  rect(
+    width / 2 - 150,
+    330,
+    300,
+    65,
+    12
+  );
+
+  fill(255);
+
+  textSize(22);
+
+  text(
+    "LEERTASTE zum Starten",
+    width / 2,
+    362
+  );
+
+  textSize(17);
+
+  text(
+    "Bewege die Plattform mit Pfeil links, rechts oder A, D",
+    width / 2,
+    440
+  );
+}
+
+
+// ------------------------------------------------------------
+// GAME OVER
+// ------------------------------------------------------------
+
+function drawGameOver() {
+
+  fill(255, 70, 80);
+
+  textAlign(CENTER, CENTER);
+
+  textSize(60);
+  textStyle(BOLD);
+
+  text(
+    "GAME OVER",
+    width / 2,
+    230
+  );
+
+  fill(255);
+
+  textStyle(NORMAL);
+  textSize(25);
+
+  text(
+    "Punkte: " + score,
+    width / 2,
+    300
+  );
+
+  textSize(20);
+
+  text(
+    "Druecke R für einen Neustart",
+    width / 2,
+    370
+  );
+}
+
+
+// ------------------------------------------------------------
+// GEWONNEN
+// ------------------------------------------------------------
+
+function drawWin() {
+
+  fill(80, 255, 150);
+
+  textAlign(CENTER, CENTER);
+
+  textSize(60);
+  textStyle(BOLD);
+
+  text(
+    "GEWONNEN!",
+    width / 2,
+    230
+  );
+
+  fill(255);
+
+  textStyle(NORMAL);
+  textSize(25);
+
+  text(
+    "Alle Ziele getroffen!",
+    width / 2,
+    300
+  );
+
+  text(
+    "Punkte: " + score,
+    width / 2,
+    345
+  );
+
+  textSize(20);
+
+  text(
+    "Druecke R für ein neues Spiel",
+    width / 2,
+    400
+  );
+}
+
+
+// ------------------------------------------------------------
+// TASTEN
+// ------------------------------------------------------------
+
+function keyPressed() {
+
+  if (key === " ") {
+
+    if (!started) {
+      started = true;
+    }
+  }
+
+  if (key === "r" || key === "R") {
+
+    score = 0;
+    lives = 3;
+
+    started = true;
+    gameOver = false;
+    won = false;
+
+    createTargets();
+    resetBall();
+  }
+}
+
+
+
+
+//-------Bis hier einfügen-----------------------
+</script>
+
+// <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js">
+<script src="https://cdn.jsdelivr.net/npm/p5@2.3.2/lib/p5.js">
+
+</script>
+
+</body>
+
+</html>
